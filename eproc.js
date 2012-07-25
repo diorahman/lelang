@@ -1,7 +1,8 @@
 var request = require('request')
 var cheerio = require('cheerio')
 
-var URL = 'http://lpse.depkeu.go.id/eproc/app'
+var ROOT = 'http://lpse.depkeu.go.id'
+var URL = ROOT + '/eproc/app'
 
 function list(body, cb){	
 		var paging = []
@@ -37,7 +38,7 @@ function list(body, cb){
 					var line = $(lines[k])
 					obj.dataLinks.push({
 						text : line.text().trim(),
-						href : line.attr('href')
+						href : line.attr('href').split('&amp;').join('&')
 						})
 				}
 				
@@ -116,6 +117,82 @@ function list(body, cb){
 		cb(null, objRet)
 }
 
+function qualificationDetail(body, cb){
+	var $ = cheerio.load(body)
+	
+	$('tr').each(function(i, elem){
+		$(this).find('td').each(function(i, elem){
+			console.log($(this).text())
+		})
+		
+	})
+	
+	/*$('table').find('table').find('tr').each(function(i, elem){
+		$(this).find('td')
+	})*/
+	
+}
+function currentStateDetail(body){
+	var $ = cheerio.load(body)
+	return $('a').html().trim().split('\t').join('').split('<br/>')
+}
+
+
+function nameDetail(body, cb){
+	var $ = cheerio.load(body)
+	
+	var labels = []
+	var fields = []
+	
+	var len = $('label').length
+	
+	for(var i = 0; i < len; i++){
+		var label = $('label')[i]
+		var labelText = $(label).text()
+		labels.push(labelText)
+	}
+	
+	len = $('span.field').length
+	for(var i = 0; i < len; i++){
+		var field = $('span.field')[i]
+		var fieldText = $(field).html()
+		fields.push(fieldText)
+	}
+	
+	len = $('span.field2').length
+	for(var i = 0; i < len; i++){
+		var field = $('span.field2')[i]
+		var fieldText = $(field).html()
+		fields.push(fieldText)
+	}
+	
+	var obj = {}
+	obj.data = {}
+	obj.data.code = fields[0]
+	obj.data.name = fields[1].split('&nbsp;').join(' ')
+	obj.data.note = fields[2].split('&nbsp;').join(' ')
+	obj.data.currentState = currentStateDetail(fields[3])
+	obj.data.agency = fields[4]
+	obj.data.workUnit = fields[5]
+	obj.data.category = fields[6]
+	obj.data.companyQualification = fields[8]
+	obj.data.source = fields[9]
+	obj.data.qualification = fields[10].split('&nbsp;').join('').trim().split('class = "horizLine"').join('').split('class = "selected horizLine"').join('').split('border = "0" cellspacing = "0" cellpadding = "2"').join('').split('class = "titleTop"').join('').split('valign = "top"').join('').split('width = "90%"').join('').split("nowrap").join('')
+	obj.data.method = fields[12]
+	obj.data.qualificationMethod = fields[13]
+	obj.data.documentMethod = fields[14]
+	obj.data.evaluationMethod = fields[15]
+	obj.data.budgetYear = fields[16]
+	obj.data.paguPackageValue = fields[17]
+	obj.data.HPSPackageValue = fields[19]
+	obj.data.contractTypeKickback = fields[20]
+	obj.data.contractTypeDuration = fields[21]
+	obj.data.contractTypeNumberOfPlayers = fields[22]
+	
+	//qualificationDetail(fields[10])
+	
+	cb(null, obj)
+}
 
 exports.search = function (keyword, category, cb){
 	
@@ -140,7 +217,14 @@ exports.search = function (keyword, category, cb){
 	request(options, function(a, b, c){
 		list(c, function(err, data){
 			cb(err, data)
-		})	
+		})		
+	})
+}
+
+exports.detail = function(url, cb){
+	var link = ROOT + url.split('&amp;').join('&')
+	request(link, function(a, b, body){
+		nameDetail(body, cb)
 	})
 }
 
